@@ -2,7 +2,7 @@
 
 <img src="public/rpowmarket.png" alt="rpowMarket" height="96" />
 
-# rpowMarket — BTC Up / Down Prediction Market on rpow2
+# rpowMarket — BTC Up / Down Prediction Market on rpow2, rpow3, rpow4!
 
 **Open-source 5-minute Bitcoin price market. Polymarket-style parimutuel pools.
 Built on [rpow2](https://rpow2.com) play tokens. Tribute to Hal Finney.**
