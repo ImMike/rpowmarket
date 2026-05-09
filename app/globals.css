@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body { background: #0b0d12; color: #e7e9ee; }
+
+/* ---------- terminal theme ---------- */
+html[data-theme="terminal"],
+html[data-theme="terminal"] body {
+  background: #0a0805;
+  color: #ffb000;
+  font-family: "Consolas", "Courier New", "Lucida Console", monospace;
+}
+html[data-theme="terminal"] * {
+  font-family: inherit !important;
+}
+html[data-theme="terminal"] .bg-panel,
+html[data-theme="terminal"] .bg-bg { background: transparent !important; }
+html[data-theme="terminal"] .bg-black\/30,
+html[data-theme="terminal"] .bg-black\/40,
+html[data-theme="terminal"] .bg-zinc-900,
+html[data-theme="terminal"] .bg-zinc-900\/60 { background: rgba(255,176,0,0.05) !important; }
+html[data-theme="terminal"] .bg-zinc-100 { background: #ffb000 !important; color: #0a0805 !important; }
+html[data-theme="terminal"] .border-border,
+html[data-theme="terminal"] .border-border\/50,
+html[data-theme="terminal"] [class*="border-up\/"],
+html[data-theme="terminal"] [class*="border-down\/"] { border-color: #cc8c00 !important; }
+
+html[data-theme="terminal"] .text-zinc-100,
+html[data-theme="terminal"] .text-zinc-200,
+html[data-theme="terminal"] .text-zinc-300 { color: #ffb000 !important; }
+html[data-theme="terminal"] .text-zinc-400,
+html[data-theme="terminal"] .text-zinc-500 { color: #aa7400 !important; }
+html[data-theme="terminal"] .text-amber-400 { color: #ffd060 !important; }
+
+html[data-theme="terminal"] .text-up { color: #00d96a !important; }
+html[data-theme="terminal"] .text-down { color: #ff5050 !important; }
+html[data-theme="terminal"] .bg-up,
+html[data-theme="terminal"] .bg-up\/10 { background: rgba(0,217,106,0.18) !important; }
+html[data-theme="terminal"] .bg-down,
+html[data-theme="terminal"] .bg-down\/10 { background: rgba(255,80,80,0.18) !important; }
+html[data-theme="terminal"] [class*="border-up\/"] { border-color: #00d96a !important; }
+html[data-theme="terminal"] [class*="border-down\/"] { border-color: #ff5050 !important; }
+
+/* sharp corners + no shadows */
+html[data-theme="terminal"] .rounded,
+html[data-theme="terminal"] .rounded-lg,
+html[data-theme="terminal"] .rounded-xl,
+html[data-theme="terminal"] .rounded-2xl,
+html[data-theme="terminal"] .rounded-full { border-radius: 0 !important; }
+html[data-theme="terminal"] .shadow-xl { box-shadow: none !important; }
+
+/* BTC logo box -> terminal-style */
+html[data-theme="terminal"] .bg-\[\#f7931a\] {
+  background: transparent !important;
+  color: #ffb000 !important;
+  border: 1px solid #cc8c00;
+}
+
+/* CRT scanlines */
+html[data-theme="terminal"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0,0,0,0) 0px,
+    rgba(0,0,0,0) 2px,
+    rgba(255,176,0,0.05) 3px
+  );
+}
+html[data-theme="terminal"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 99;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.6) 100%);
+}
