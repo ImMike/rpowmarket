@@ -1,12 +1,12 @@
 import Header from "@/components/Header";
-import Market from "@/components/Market";
+import HomeView from "@/components/HomeView";
 import GithubBadge from "@/components/GithubBadge";
 
 export default function Page() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
       <Header />
-      <Market />
+      <HomeView />
       <footer className="mt-12 border-t border-border pt-4 text-xs text-zinc-500">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span>In memory of Hal Finney. RPOW lives on.</span>
