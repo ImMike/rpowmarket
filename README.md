@@ -244,7 +244,7 @@ Long-form lawyered version inside the app at `/disclaimer`.
 
 ## ▮ License
 
-MIT. Fork it, ship it, mock it, embed it, sell it, ignore it. Just don't sue the author.
+MIT. Fork it, ship it, mock it, embed it, sell it, ignore it.
 
 ---
 
