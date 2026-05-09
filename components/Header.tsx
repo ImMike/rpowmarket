@@ -30,13 +30,11 @@ export default function Header() {
             terminal
           </button>
         </div>
-        <a
-          href="https://rpow2.com"
-          target="_blank"
-          className="text-xs text-zinc-500 hover:text-zinc-300"
-        >
-          rpow2.com →
-        </a>
+        <div className="flex items-center gap-3 text-xs text-zinc-500">
+          <a href="https://rpow2.com" target="_blank" className="hover:text-zinc-300">rpow2.com →</a>
+          <a href="https://rpow3.com" target="_blank" className="hover:text-zinc-300">rpow3.com →</a>
+          <a href="https://rpow4.com" target="_blank" className="hover:text-zinc-300">rpow4.com →</a>
+        </div>
       </div>
     </header>
   );

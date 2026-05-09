@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 export type Theme = "modern" | "terminal";
 
 export function useTheme(): [Theme, (t: Theme) => void] {
-  const [theme, setTheme] = useState<Theme>("modern");
+  const [theme, setTheme] = useState<Theme>("terminal");
   useEffect(() => {
-    const stored = (localStorage.getItem("theme") as Theme | null) ?? "modern";
+    const stored = (localStorage.getItem("theme") as Theme | null) ?? "terminal";
     setTheme(stored);
     document.documentElement.dataset.theme = stored;
   }, []);

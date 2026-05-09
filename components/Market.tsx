@@ -306,12 +306,20 @@ export default function Market() {
         <span>Round #{cur.id}</span>
         <span>
           {locked ? (
-            <span className="text-amber-400">Locked</span>
+            <span className="text-amber-400">Locked — settling</span>
           ) : (
-            <span>Bets close in {Math.floor(acceptRemainMs / 1000)}s</span>
+            <span>Predictions close in {Math.floor(acceptRemainMs / 1000)}s</span>
           )}
         </span>
       </div>
+
+      {locked && (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
+          <div className="mb-1 text-xs uppercase tracking-wider text-amber-400">⚠ Round locked</div>
+          Predictions for this round are closed. Anything you send during lockout will be{" "}
+          <span className="font-semibold">automatically refunded</span> — wait for the next round to play.
+        </div>
+      )}
 
       {/* Three token pool cards */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -344,9 +352,9 @@ export default function Market() {
         <Sparkline data={upHistory} />
       </div>
 
-      {/* Full-width How to bet */}
+      {/* Full-width How to predict */}
       <div className="rounded-2xl border border-border bg-panel p-5">
-        <div className="mb-3 text-xs uppercase tracking-wider text-zinc-500">How to bet</div>
+        <div className="mb-3 text-xs uppercase tracking-wider text-zinc-500">How to predict</div>
         <div className="grid gap-4 md:grid-cols-2">
           <ul className="space-y-2 text-sm text-zinc-300">
             <li>
@@ -458,17 +466,17 @@ function TokenPoolCard({
         <div className="rounded-lg border border-up/30 bg-up/10 p-2">
           <div className="text-up font-semibold">UP · {p.up.toFixed(1)}%</div>
           <div className="tabular-nums text-zinc-200">{fmtRpow(pool.upPool)}</div>
-          <div className="text-[10px] text-zinc-500">{pool.upCount} bets</div>
+          <div className="text-[10px] text-zinc-500">{pool.upCount} predictions</div>
         </div>
         <div className="rounded-lg border border-down/30 bg-down/10 p-2">
           <div className="text-down font-semibold">DOWN · {p.down.toFixed(1)}%</div>
           <div className="tabular-nums text-zinc-200">{fmtRpow(pool.downPool)}</div>
-          <div className="text-[10px] text-zinc-500">{pool.downCount} bets</div>
+          <div className="text-[10px] text-zinc-500">{pool.downCount} predictions</div>
         </div>
       </div>
       {recentBets.length > 0 && (
-        <div className="mt-2 max-h-20 overflow-hidden text-[10px]">
-          {recentBets.slice(0, 4).map((b) => (
+        <div className="mt-2 max-h-40 overflow-y-auto pr-1 text-[10px]">
+          {recentBets.map((b) => (
             <div key={`${b.email}-${b.atMs}`} className="flex items-center justify-between gap-2 py-0.5">
               <span className="truncate text-zinc-500">{b.email}</span>
               <span className={`tabular-nums ${b.side === "up" ? "text-up" : b.side === "down" ? "text-down" : "text-zinc-500"}`}>

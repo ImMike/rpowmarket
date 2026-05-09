@@ -4,3 +4,10 @@ data
 .env
 .env.local
 *.log
+*.pem
+*.key
+*.cookie
+*.cookies
+cookies.txt
+secrets/
+r4.js

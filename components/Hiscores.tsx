@@ -86,7 +86,7 @@ export default function Hiscores() {
                   <div className="tabular-nums text-zinc-200">{fmtRpow(b.volume)}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] uppercase tracking-wider text-zinc-500">Bets</div>
+                  <div className="text-[10px] uppercase tracking-wider text-zinc-500">Predictions</div>
                   <div className="tabular-nums text-zinc-200">{b.bets.toLocaleString()}</div>
                 </div>
               </div>
@@ -102,7 +102,7 @@ export default function Hiscores() {
               <th className="px-3 py-3 text-left">Rank</th>
               <th className="px-3 py-3 text-left">Player</th>
               <th className="px-3 py-3 text-right">Volume</th>
-              <th className="px-3 py-3 text-right">Bets</th>
+              <th className="px-3 py-3 text-right">Predictions</th>
               <th className="px-3 py-3 text-right">UP</th>
               <th className="px-3 py-3 text-right">DOWN</th>
               <th className="px-3 py-3 text-right">Bias</th>
@@ -112,7 +112,7 @@ export default function Hiscores() {
             {state.rows.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-3 py-8 text-center text-zinc-500">
-                  No bets yet — be the first to climb the ranks.
+                  No predictions yet — be the first to climb the ranks.
                 </td>
               </tr>
             ) : (
@@ -161,7 +161,7 @@ export default function Hiscores() {
       </div>
 
       <div className="text-xs text-zinc-500">
-        Rankings are cumulative across all rounds and all tokens. Every valid bet adds to your
+        Rankings are cumulative across all rounds and all tokens. Every valid prediction adds to your
         volume — keep climbing.
       </div>
     </div>

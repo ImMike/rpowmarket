@@ -338,7 +338,7 @@ export function roundView(roundId: number): RoundView {
   const w = windowsFor(roundId);
   const recentRaw = d
     .prepare(
-      `SELECT side, amount_base as amount, email, at_ms as atMs, token FROM bets WHERE round_id = ? ORDER BY at_ms DESC LIMIT 20`
+      `SELECT side, amount_base as amount, email, at_ms as atMs, token FROM bets WHERE round_id = ? ORDER BY at_ms DESC LIMIT 200`
     )
     .all(roundId) as {
     side: "up" | "down" | "invalid";
@@ -390,8 +390,8 @@ export async function tick() {
   const due = d
     .prepare(`SELECT id FROM rounds WHERE status IN ('open','locked') AND id <= ?`)
     .all(Math.floor((now - cfg.roundSec * 1000) / 1000)) as { id: number }[];
-  for (const r of due) await settleRound(r.id).catch(() => {});
   await ingestActivity().catch(() => {});
+  for (const r of due) await settleRound(r.id).catch(() => {});
   await flushPayouts().catch(() => {});
   try {
     refundDeadPayouts();
