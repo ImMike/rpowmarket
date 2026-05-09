@@ -56,7 +56,7 @@ export const cfg = {
   acceptSec: Number(process.env.ACCEPT_SECONDS ?? 240),
   dbPath: process.env.DB_PATH ?? "./data/market.db",
   minBetBase: process.env.MIN_BET_BASE ?? "1",
-  maxBetBase: (BigInt(process.env.MAX_BET_RPOW ?? "1000") * RPOW).toString(),
+  maxBetBase: (BigInt(process.env.MAX_BET_RPOW ?? "21000000") * RPOW).toString(),
   maxClockSkewMs: Number(process.env.MAX_CLOCK_SKEW_MS ?? 5 * 60 * 1000),
   payoutBackoffMs: [5_000, 30_000, 5 * 60_000, 30 * 60_000, 2 * 60 * 60_000],
 };

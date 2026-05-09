@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Market from "./Market";
 import Hiscores from "./Hiscores";
+import VisitorCounter from "./VisitorCounter";
 
 type Tab = "market" | "hiscores";
 
@@ -50,6 +51,8 @@ export default function HomeView() {
       </nav>
 
       {tab === "market" ? <Market /> : <Hiscores />}
+
+      <VisitorCounter />
     </div>
   );
 }

@@ -361,7 +361,8 @@ export default function Market() {
               <span className="text-zinc-500">1.</span> Pick a token below — rPOW2, rPOW3, or rPOW4. Same rules across all three.
             </li>
             <li>
-              <span className="text-zinc-500">2.</span> Send any amount. Last non-zero digit{" "}
+              <span className="text-zinc-500">2.</span> Send your amount to the token&apos;s{" "}
+              <span className="font-semibold text-zinc-200">Banker</span> address shown on each card. Last non-zero digit{" "}
               <span className="font-mono text-up">odd</span> = UP,{" "}
               <span className="font-mono text-down">even</span> = DOWN.
             </li>
@@ -479,8 +480,15 @@ function TokenPoolCard({
           {recentBets.map((b) => (
             <div key={`${b.email}-${b.atMs}`} className="flex items-center justify-between gap-2 py-0.5">
               <span className="truncate text-zinc-500">{b.email}</span>
-              <span className={`tabular-nums ${b.side === "up" ? "text-up" : b.side === "down" ? "text-down" : "text-zinc-500"}`}>
-                +{fmtRpow(b.amount)}
+              <span className="flex items-center gap-1">
+                {b.side === "invalid" && (
+                  <span className="rounded bg-amber-500/20 px-1 text-[9px] uppercase tracking-wider text-amber-400">
+                    refund
+                  </span>
+                )}
+                <span className={`tabular-nums ${b.side === "up" ? "text-up" : b.side === "down" ? "text-down" : "text-amber-400"}`}>
+                  +{fmtRpow(b.amount)}
+                </span>
               </span>
             </div>
           ))}
