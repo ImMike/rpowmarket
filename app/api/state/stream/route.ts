@@ -1,6 +1,6 @@
 import { currentRound } from "@/lib/rounds";
 import { ensureRound, recentRounds, roundView } from "@/lib/market";
-import { cfg } from "@/lib/config";
+import { cfg, tokens } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +13,12 @@ function snapshot() {
     rakeBps: cfg.rakeBps,
     minBetRpow: Number(BigInt(cfg.minBetBase) / 1_000_000_000n),
     maxBetRpow: Number(BigInt(cfg.maxBetBase) / 1_000_000_000n),
+    tokens: tokens.map((t) => ({
+      slug: t.slug,
+      label: t.label,
+      banker: t.banker,
+      enabled: t.enabled,
+    })),
     current: roundView(cur.id),
     recent: recentRounds(10),
   };

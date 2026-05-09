@@ -62,7 +62,15 @@ export function db(): Database.Database {
   if (!has("last_error")) d.exec(`ALTER TABLE payouts ADD COLUMN last_error TEXT`);
   if (!has("attempts")) d.exec(`ALTER TABLE payouts ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0`);
   if (!has("next_attempt_at")) d.exec(`ALTER TABLE payouts ADD COLUMN next_attempt_at INTEGER NOT NULL DEFAULT 0`);
+  if (!has("token")) d.exec(`ALTER TABLE payouts ADD COLUMN token TEXT NOT NULL DEFAULT 'rpow2'`);
+
+  const betCols = d.prepare(`PRAGMA table_info(bets)`).all() as { name: string }[];
+  const betHas = (n: string) => betCols.some((c) => c.name === n);
+  if (!betHas("token")) d.exec(`ALTER TABLE bets ADD COLUMN token TEXT NOT NULL DEFAULT 'rpow2'`);
+
   d.exec(`CREATE INDEX IF NOT EXISTS idx_prices_ts ON prices(ts_ms)`);
+  d.exec(`CREATE INDEX IF NOT EXISTS idx_bets_round_token ON bets(round_id, token)`);
+  d.exec(`CREATE INDEX IF NOT EXISTS idx_payouts_token ON payouts(token, status)`);
   _db = d;
   return d;
 }

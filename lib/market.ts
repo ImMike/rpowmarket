@@ -2,7 +2,7 @@ import { db } from "./db";
 import { fetchActivity, sideFromAmount, txKey, sendRpow, type Side } from "./rpow";
 import { currentRound, inAcceptWindow, roundIdAt, windowsFor } from "./rounds";
 import { getPriceAt, getPriceAtChecked, getSpotPrice } from "./binance";
-import { cfg } from "./config";
+import { cfg, tokens, type TokenSlug } from "./config";
 
 function maskEmail(e: string): string {
   const [u, d] = e.split("@");
@@ -36,28 +36,25 @@ function getWatermark(): number {
   return seed;
 }
 
-export async function ingestActivity() {
-  const items = await fetchActivity();
+async function ingestForToken(slug: TokenSlug) {
+  const items = await fetchActivity(slug).catch(() => []);
   const d = db();
   const watermark = getWatermark();
   const min = BigInt(cfg.minBetBase);
   const max = BigInt(cfg.maxBetBase);
   const now = Date.now();
   const insert = d.prepare(
-    `INSERT OR IGNORE INTO bets (round_id, email, amount_base, side, at_ms, tx_key) VALUES (?, ?, ?, ?, ?, ?)`
+    `INSERT OR IGNORE INTO bets (round_id, email, amount_base, side, at_ms, tx_key, token) VALUES (?, ?, ?, ?, ?, ?, ?)`
   );
   for (const it of items) {
     if (it.type !== "receive") continue;
     const atMs = Date.parse(it.at);
     if (!Number.isFinite(atMs)) continue;
     if (atMs < watermark) continue;
-    // clock-skew sanity: drop bets timestamped impossibly far in the future
     if (atMs > now + cfg.maxClockSkewMs) continue;
     if (!/^\d+$/.test(it.amount_base_units)) continue;
     const amt = BigInt(it.amount_base_units);
-    // dust drop: below minimum, ignore entirely (no refund — anti-spam)
     if (amt < min) continue;
-    // whale cap: above max, refund-only (still ingest as invalid)
     const overCap = amt > max;
     const rid = roundIdAt(atMs);
     const w = windowsFor(rid);
@@ -66,11 +63,18 @@ export async function ingestActivity() {
       side = sideFromAmount(it.amount_base_units);
     }
     ensureRound(rid);
-    insert.run(rid, it.counterparty_email, it.amount_base_units, side, atMs, txKey(it));
+    insert.run(rid, it.counterparty_email, it.amount_base_units, side, atMs, txKey(slug, it), slug);
   }
 }
 
-type BetRow = { id: number; email: string; amount_base: string; side: Side };
+export async function ingestActivity() {
+  for (const t of tokens) {
+    if (!t.enabled) continue;
+    await ingestForToken(t.slug).catch(() => {});
+  }
+}
+
+type BetRow = { id: number; email: string; amount_base: string; side: Side; token: string };
 
 export async function settleRound(roundId: number) {
   const d = db();
@@ -110,58 +114,57 @@ export async function settleRound(roundId: number) {
   const settle = checked.price;
   d.prepare(`UPDATE rounds SET settle = ? WHERE id = ?`).run(settle, roundId);
 
-  const bets = d.prepare(`SELECT id, email, amount_base, side FROM bets WHERE round_id = ?`).all(roundId) as BetRow[];
+  const bets = d
+    .prepare(`SELECT id, email, amount_base, side, token FROM bets WHERE round_id = ?`)
+    .all(roundId) as BetRow[];
 
-  const valid = bets.filter((b) => b.side === "up" || b.side === "down");
-  const invalid = bets.filter((b) => b.side === "invalid");
-
-  // refund invalid always
   const insertPayout = d.prepare(
-    `INSERT INTO payouts (round_id, email, amount_base, kind, status, created_at) VALUES (?, ?, ?, ?, 'pending', ?)`
+    `INSERT INTO payouts (round_id, email, amount_base, kind, status, token, created_at) VALUES (?, ?, ?, ?, 'pending', ?, ?)`
   );
-  for (const b of invalid) insertPayout.run(roundId, b.email, b.amount_base, "refund", Date.now());
-
-  if (valid.length === 0) {
-    d.prepare(`UPDATE rounds SET status = 'settled', settled_at = ? WHERE id = ?`).run(Date.now(), roundId);
-    return;
-  }
-
-  // tie -> refund all
-  if (settle === strike) {
-    for (const b of valid) insertPayout.run(roundId, b.email, b.amount_base, "refund", Date.now());
-    d.prepare(`UPDATE rounds SET status = 'refunded', settled_at = ? WHERE id = ?`).run(Date.now(), roundId);
-    return;
-  }
-
-  const winnerSide: Side = settle > strike ? "up" : "down";
-  const winners = valid.filter((b) => b.side === winnerSide);
-  const losers = valid.filter((b) => b.side !== winnerSide);
-
-  // no winners -> refund winners side (none) + refund losers
-  if (winners.length === 0) {
-    for (const b of valid) insertPayout.run(roundId, b.email, b.amount_base, "refund", Date.now());
-    d.prepare(`UPDATE rounds SET status = 'refunded', settled_at = ? WHERE id = ?`).run(Date.now(), roundId);
-    return;
-  }
-
   const sumBI = (rows: BetRow[]) => rows.reduce((acc, r) => acc + BigInt(r.amount_base), 0n);
-  const winnerStake = sumBI(winners);
-  const loserStake = sumBI(losers);
-  const rake = (loserStake * BigInt(cfg.rakeBps)) / 10000n;
-  const distributable = loserStake - rake;
 
-  // raw computed share per winner (BigInt base units). Banker tries to assemble exact denominations.
-  // If it can't (EXACT_SUM_REQUIRED), payout marks dead → refundDeadPayouts queues stake refund.
-  for (const w of winners) {
-    const stake = BigInt(w.amount_base);
-    const winShare = (distributable * stake) / winnerStake;
-    const total = stake + winShare;
-    if (total > 0n) {
-      insertPayout.run(roundId, w.email, total.toString(), "win", Date.now());
+  // settle each token's pool independently using the same strike/settle price
+  const allTokens = Array.from(new Set(bets.map((b) => b.token)));
+  for (const tok of allTokens) {
+    const tokBets = bets.filter((b) => b.token === tok);
+    const valid = tokBets.filter((b) => b.side === "up" || b.side === "down");
+    const invalid = tokBets.filter((b) => b.side === "invalid");
+
+    for (const b of invalid) insertPayout.run(roundId, b.email, b.amount_base, "refund", tok, Date.now());
+
+    if (valid.length === 0) continue;
+
+    if (settle === strike) {
+      for (const b of valid) insertPayout.run(roundId, b.email, b.amount_base, "refund", tok, Date.now());
+      continue;
+    }
+
+    const winnerSide: Side = settle > strike ? "up" : "down";
+    const winners = valid.filter((b) => b.side === winnerSide);
+    const losers = valid.filter((b) => b.side !== winnerSide);
+
+    if (winners.length === 0) {
+      for (const b of valid) insertPayout.run(roundId, b.email, b.amount_base, "refund", tok, Date.now());
+      continue;
+    }
+
+    const winnerStake = sumBI(winners);
+    const loserStake = sumBI(losers);
+    const rake = (loserStake * BigInt(cfg.rakeBps)) / 10000n;
+    const distributable = loserStake - rake;
+
+    for (const w of winners) {
+      const stake = BigInt(w.amount_base);
+      const winShare = (distributable * stake) / winnerStake;
+      const total = stake + winShare;
+      if (total > 0n) {
+        insertPayout.run(roundId, w.email, total.toString(), "win", tok, Date.now());
+      }
     }
   }
 
-  d.prepare(`UPDATE rounds SET status = 'settled', settled_at = ? WHERE id = ?`).run(Date.now(), roundId);
+  const finalStatus = settle === strike ? "refunded" : "settled";
+  d.prepare(`UPDATE rounds SET status = ?, settled_at = ? WHERE id = ?`).run(finalStatus, Date.now(), roundId);
 }
 
 export async function flushPayouts() {
@@ -181,13 +184,13 @@ export async function flushPayouts() {
   for (const id of ids) {
     if (claim.run(id, now).changes !== 1) continue;
     const row = d
-      .prepare(`SELECT id, email, amount_base, attempts FROM payouts WHERE id = ?`)
-      .get(id) as { id: number; email: string; amount_base: string; attempts: number };
+      .prepare(`SELECT id, email, amount_base, attempts, token FROM payouts WHERE id = ?`)
+      .get(id) as { id: number; email: string; amount_base: string; attempts: number; token: string };
 
     const key = `rpowmarket-payout-${row.id}`;
     d.prepare(`UPDATE payouts SET idempotency_key = ? WHERE id = ?`).run(key, row.id);
 
-    const res = await sendRpow(row.email, row.amount_base, key);
+    const res = await sendRpow(row.token as TokenSlug, row.email, row.amount_base, key);
     if (res.ok) {
       d.prepare(
         `UPDATE payouts SET status = 'sent', sent_at = ?, transfer_id = ?, last_error = NULL WHERE id = ?`
@@ -218,21 +221,20 @@ export function refundDeadPayouts() {
   const d = db();
   const dead = d
     .prepare(
-      `SELECT id, round_id, email, kind FROM payouts WHERE status = 'dead' AND kind IN ('win','refund')`
+      `SELECT id, round_id, email, kind, token FROM payouts WHERE status = 'dead' AND kind IN ('win','refund')`
     )
-    .all() as { id: number; round_id: number; email: string; kind: string }[];
+    .all() as { id: number; round_id: number; email: string; kind: string; token: string }[];
   const insert = d.prepare(
-    `INSERT INTO payouts (round_id, email, amount_base, kind, status, created_at) VALUES (?, ?, ?, 'dead_refund', 'pending', ?)`
+    `INSERT INTO payouts (round_id, email, amount_base, kind, status, token, created_at) VALUES (?, ?, ?, 'dead_refund', 'pending', ?, ?)`
   );
   const markCompensated = d.prepare(`UPDATE payouts SET status = 'compensated' WHERE id = ?`);
   for (const p of dead) {
-    // already compensated for this user/round?
     const existing = (
       d
         .prepare(
-          `SELECT COUNT(*) as c FROM payouts WHERE round_id = ? AND email = ? AND kind = 'dead_refund'`
+          `SELECT COUNT(*) as c FROM payouts WHERE round_id = ? AND email = ? AND token = ? AND kind = 'dead_refund'`
         )
-        .get(p.round_id, p.email) as { c: number }
+        .get(p.round_id, p.email, p.token) as { c: number }
     ).c;
     if (existing > 0) {
       markCompensated.run(p.id);
@@ -241,19 +243,26 @@ export function refundDeadPayouts() {
     const stakes = (
       d
         .prepare(
-          `SELECT COALESCE(SUM(CAST(amount_base AS INTEGER)), 0) as s FROM bets WHERE round_id = ? AND email = ? AND side IN ('up','down')`
+          `SELECT COALESCE(SUM(CAST(amount_base AS INTEGER)), 0) as s FROM bets WHERE round_id = ? AND email = ? AND token = ? AND side IN ('up','down')`
         )
-        .get(p.round_id, p.email) as { s: number }
+        .get(p.round_id, p.email, p.token) as { s: number }
     ).s;
     if (stakes <= 0) {
       markCompensated.run(p.id);
       continue;
     }
-    insert.run(p.round_id, p.email, String(stakes), Date.now());
+    insert.run(p.round_id, p.email, String(stakes), p.token, Date.now());
     markCompensated.run(p.id);
   }
 }
 
+export type TokenPool = {
+  token: TokenSlug;
+  upPool: string;
+  downPool: string;
+  upCount: number;
+  downCount: number;
+};
 export type RoundView = {
   id: number;
   startMs: number;
@@ -266,7 +275,14 @@ export type RoundView = {
   downPool: string;
   upCount: number;
   downCount: number;
-  recentBets?: { side: "up" | "down" | "invalid"; amount: string; email: string; atMs: number }[];
+  pools: TokenPool[];
+  recentBets?: {
+    side: "up" | "down" | "invalid";
+    amount: string;
+    email: string;
+    atMs: number;
+    token: TokenSlug;
+  }[];
 };
 
 export function roundView(roundId: number): RoundView {
@@ -280,28 +296,57 @@ export function roundView(roundId: number): RoundView {
   };
   const agg = d
     .prepare(
-      `SELECT side, COUNT(*) as n, COALESCE(SUM(CAST(amount_base AS INTEGER)), 0) as sum FROM bets WHERE round_id = ? GROUP BY side`
+      `SELECT token, side, COUNT(*) as n, COALESCE(SUM(CAST(amount_base AS INTEGER)), 0) as sum FROM bets WHERE round_id = ? GROUP BY token, side`
     )
-    .all(roundId) as { side: Side; n: number; sum: number }[];
-  let up = "0",
-    down = "0",
+    .all(roundId) as { token: TokenSlug; side: Side; n: number; sum: number }[];
+
+  const poolMap = new Map<TokenSlug, TokenPool>();
+  for (const t of tokens) {
+    poolMap.set(t.slug, { token: t.slug, upPool: "0", downPool: "0", upCount: 0, downCount: 0 });
+  }
+  for (const a of agg) {
+    const p = poolMap.get(a.token) ?? {
+      token: a.token,
+      upPool: "0",
+      downPool: "0",
+      upCount: 0,
+      downCount: 0,
+    };
+    if (a.side === "up") {
+      p.upPool = String(a.sum);
+      p.upCount = a.n;
+    } else if (a.side === "down") {
+      p.downPool = String(a.sum);
+      p.downCount = a.n;
+    }
+    poolMap.set(a.token, p);
+  }
+  const pools = tokens.map((t) => poolMap.get(t.slug)!).filter(Boolean);
+
+  // legacy single-pool aggregate (sum across all tokens) for backward-compatible UI fields
+  let up = 0n,
+    down = 0n,
     upN = 0,
     downN = 0;
-  for (const a of agg) {
-    if (a.side === "up") {
-      up = String(a.sum);
-      upN = a.n;
-    } else if (a.side === "down") {
-      down = String(a.sum);
-      downN = a.n;
-    }
+  for (const p of pools) {
+    up += BigInt(p.upPool);
+    down += BigInt(p.downPool);
+    upN += p.upCount;
+    downN += p.downCount;
   }
+
   const w = windowsFor(roundId);
   const recentRaw = d
     .prepare(
-      `SELECT side, amount_base as amount, email, at_ms as atMs FROM bets WHERE round_id = ? ORDER BY at_ms DESC LIMIT 20`
+      `SELECT side, amount_base as amount, email, at_ms as atMs, token FROM bets WHERE round_id = ? ORDER BY at_ms DESC LIMIT 20`
     )
-    .all(roundId) as { side: "up" | "down" | "invalid"; amount: string; email: string; atMs: number }[];
+    .all(roundId) as {
+    side: "up" | "down" | "invalid";
+    amount: string;
+    email: string;
+    atMs: number;
+    token: TokenSlug;
+  }[];
   const recent = recentRaw.map((b) => ({ ...b, email: maskEmail(b.email) }));
   return {
     id: r.id,
@@ -311,10 +356,11 @@ export function roundView(roundId: number): RoundView {
     status: r.status,
     strike: r.strike,
     settle: r.settle,
-    upPool: up,
-    downPool: down,
+    upPool: up.toString(),
+    downPool: down.toString(),
     upCount: upN,
     downCount: downN,
+    pools,
     recentBets: recent,
   };
 }

@@ -1,32 +1,35 @@
-import { cfg } from "./config";
+import { tokenBySlug, type TokenSlug } from "./config";
 
 export type ActivityItem = {
   type: "receive" | "send";
   amount_base_units: string;
   counterparty_email: string;
-  at: string; // ISO
+  at: string;
 };
-
-function authHeaders(): Record<string, string> {
-  const h: Record<string, string> = {};
-  if (cfg.rpowCookie) h["Cookie"] = cfg.rpowCookie;
-  if (cfg.rpowToken) h["Authorization"] = `Bearer ${cfg.rpowToken}`;
-  return h;
-}
-
-export async function fetchActivity(): Promise<ActivityItem[]> {
-  const r = await fetch(`${cfg.rpowBase}/activity`, {
-    cache: "no-store",
-    headers: authHeaders(),
-  });
-  if (!r.ok) throw new Error(`rpow activity ${r.status}`);
-  return (await r.json()) as ActivityItem[];
-}
 
 export type Side = "up" | "down" | "invalid";
 
+function authHeaders(slug: TokenSlug): Record<string, string> {
+  const t = tokenBySlug(slug);
+  const h: Record<string, string> = {};
+  if (!t) return h;
+  if (t.cookie) h["Cookie"] = t.cookie;
+  if (t.token) h["Authorization"] = `Bearer ${t.token}`;
+  return h;
+}
+
+export async function fetchActivity(slug: TokenSlug): Promise<ActivityItem[]> {
+  const t = tokenBySlug(slug);
+  if (!t || !t.enabled) return [];
+  const r = await fetch(`${t.apiBase}/activity`, {
+    cache: "no-store",
+    headers: authHeaders(slug),
+  });
+  if (!r.ok) throw new Error(`${slug} activity ${r.status}`);
+  return (await r.json()) as ActivityItem[];
+}
+
 // Bet side = parity of last NON-ZERO digit of amount_base_units.
-// Works for whole or fractional rPOW (e.g. 0.001247 base=1247000 → last non-zero "7" → odd → UP).
 export const RPOW_DECIMALS = 9;
 export function sideFromAmount(amountBase: string): Side {
   if (!/^\d+$/.test(amountBase)) return "invalid";
@@ -37,24 +40,25 @@ export function sideFromAmount(amountBase: string): Side {
   return "down";
 }
 
-export function txKey(item: ActivityItem): string {
-  return `${item.counterparty_email}|${item.at}|${item.amount_base_units}`;
+export function txKey(slug: TokenSlug, item: ActivityItem): string {
+  return `${slug}|${item.counterparty_email}|${item.at}|${item.amount_base_units}`;
 }
 
-// POST /send  body: { recipient_email, amount_base_units, idempotency_key }
-// resp: { ok, transferred_base_units, recipient_email, transfer_id }
 export async function sendRpow(
+  slug: TokenSlug,
   toEmail: string,
   amountBase: string,
   idempotencyKey: string
 ): Promise<{ ok: boolean; transferId?: string; error?: string }> {
-  if (!cfg.rpowToken && !cfg.rpowCookie) return { ok: false, error: "no auth" };
+  const t = tokenBySlug(slug);
+  if (!t || !t.enabled) return { ok: false, error: "token not configured" };
+  if (!t.cookie && !t.token) return { ok: false, error: "no auth" };
   try {
-    const r = await fetch(`${cfg.rpowBase}/send`, {
+    const r = await fetch(`${t.apiBase}/send`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...authHeaders(),
+        ...authHeaders(slug),
       },
       body: JSON.stringify({
         recipient_email: toEmail,

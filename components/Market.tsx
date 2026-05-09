@@ -4,6 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import Chart from "./Chart";
 import { useTheme } from "@/lib/useTheme";
 
+type TokenSlug = "rpow2" | "rpow3" | "rpow4";
+type TokenInfo = { slug: TokenSlug; label: string; banker: string; enabled: boolean };
+type TokenPool = {
+  token: TokenSlug;
+  upPool: string;
+  downPool: string;
+  upCount: number;
+  downCount: number;
+};
 type RoundView = {
   id: number;
   startMs: number;
@@ -16,7 +25,14 @@ type RoundView = {
   downPool: string;
   upCount: number;
   downCount: number;
-  recentBets?: { side: "up" | "down" | "invalid"; amount: string; email: string; atMs: number }[];
+  pools?: TokenPool[];
+  recentBets?: {
+    side: "up" | "down" | "invalid";
+    amount: string;
+    email: string;
+    atMs: number;
+    token: TokenSlug;
+  }[];
 };
 
 function maskEmail(e: string): string {
@@ -35,6 +51,7 @@ type State = {
   now: number;
   bankerEmail: string;
   rakeBps: number;
+  tokens?: TokenInfo[];
   current: RoundView;
   recent: RoundView[];
 };
@@ -284,93 +301,74 @@ export default function Market() {
         </div>
       </div>
 
-      {/* Pool + bet panel */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-panel p-4">
-          <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-wider text-zinc-500">
-            <span>Round #{cur.id}</span>
-            <span>
-              {locked ? (
-                <span className="text-amber-400">Locked</span>
-              ) : (
-                <span>Bets close in {Math.floor(acceptRemainMs / 1000)}s</span>
-              )}
-            </span>
-          </div>
-          <div className="mb-3 h-2 w-full overflow-hidden rounded bg-zinc-900">
-            <div className="flex h-full">
-              <div className="bg-up" style={{ width: `${p.up}%` }} />
-              <div className="bg-down" style={{ width: `${p.down}%` }} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-lg border border-up/30 bg-up/10 p-3">
-              <div className="text-up font-semibold">UP · {p.up.toFixed(1)}%</div>
-              <div className="tabular-nums">{fmtRpow(cur.upPool)} rPOW</div>
-              <div className="text-xs text-zinc-500">{cur.upCount} bets</div>
-              <div className="mt-2 max-h-24 overflow-hidden text-[11px]">
-                {(cur.recentBets ?? [])
-                  .filter((b) => b.side === "up")
-                  .slice(0, 5)
-                  .map((b) => (
-                    <div
-                      key={`${b.email}-${b.atMs}`}
-                      className="flex items-center justify-between gap-2 py-0.5"
-                    >
-                      <span className="truncate text-zinc-400">{maskEmail(b.email)}</span>
-                      <span className="tabular-nums text-up">+{fmtRpow(b.amount)}</span>
-                    </div>
-                  ))}
-              </div>
-            </div>
-            <div className="rounded-lg border border-down/30 bg-down/10 p-3">
-              <div className="text-down font-semibold">DOWN · {p.down.toFixed(1)}%</div>
-              <div className="tabular-nums">{fmtRpow(cur.downPool)} rPOW</div>
-              <div className="text-xs text-zinc-500">{cur.downCount} bets</div>
-              <div className="mt-2 max-h-24 overflow-hidden text-[11px]">
-                {(cur.recentBets ?? [])
-                  .filter((b) => b.side === "down")
-                  .slice(0, 5)
-                  .map((b) => (
-                    <div
-                      key={`${b.email}-${b.atMs}`}
-                      className="flex items-center justify-between gap-2 py-0.5"
-                    >
-                      <span className="truncate text-zinc-400">{maskEmail(b.email)}</span>
-                      <span className="tabular-nums text-down">+{fmtRpow(b.amount)}</span>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          </div>
+      {/* Round status bar */}
+      <div className="flex items-center justify-between text-xs uppercase tracking-wider text-zinc-500">
+        <span>Round #{cur.id}</span>
+        <span>
+          {locked ? (
+            <span className="text-amber-400">Locked</span>
+          ) : (
+            <span>Bets close in {Math.floor(acceptRemainMs / 1000)}s</span>
+          )}
+        </span>
+      </div>
 
-          {/* UP% sparkline */}
-          <div className="mt-3">
-            <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wider text-zinc-500">
-              <span>UP% over time</span>
-              <span className="tabular-nums">{p.up.toFixed(1)}%</span>
-            </div>
-            <Sparkline data={upHistory} />
-          </div>
+      {/* Three token pool cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {(state.tokens ?? []).map((t) => {
+          const pool =
+            cur.pools?.find((x) => x.token === t.slug) ?? {
+              token: t.slug,
+              upPool: "0",
+              downPool: "0",
+              upCount: 0,
+              downCount: 0,
+            };
+          return (
+            <TokenPoolCard
+              key={t.slug}
+              token={t}
+              pool={pool}
+              recentBets={(cur.recentBets ?? []).filter((b) => b.token === t.slug)}
+            />
+          );
+        })}
+      </div>
+
+      {/* UP% combined sparkline */}
+      <div className="rounded-2xl border border-border bg-panel p-4">
+        <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wider text-zinc-500">
+          <span>Combined UP% over time</span>
+          <span className="tabular-nums">{p.up.toFixed(1)}%</span>
         </div>
+        <Sparkline data={upHistory} />
+      </div>
 
-        <div className="rounded-2xl border border-border bg-panel p-4 text-sm">
-          <div className="mb-1 text-xs uppercase tracking-wider text-zinc-500">How to bet</div>
-          <div className="space-y-1">
-            <div className="text-zinc-400">Send rPOW to:</div>
-            <CopyButton value={state.bankerEmail} />
-          </div>
-          <ul className="mt-2 space-y-1 text-zinc-400">
+      {/* Full-width How to bet */}
+      <div className="rounded-2xl border border-border bg-panel p-5">
+        <div className="mb-3 text-xs uppercase tracking-wider text-zinc-500">How to bet</div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <ul className="space-y-2 text-sm text-zinc-300">
             <li>
-              Last non-zero digit <span className="font-mono text-up">odd</span> = UP
-              <span className="ml-2 text-zinc-500">(1, 3, 0.005, 11, 0.001247…)</span>
+              <span className="text-zinc-500">1.</span> Pick a token below — rPOW2, rPOW3, or rPOW4. Same rules across all three.
             </li>
             <li>
-              Last non-zero digit <span className="font-mono text-down">even</span> = DOWN
-              <span className="ml-2 text-zinc-500">(2, 4, 0.006, 12, 0.000128…)</span>
+              <span className="text-zinc-500">2.</span> Send any amount. Last non-zero digit{" "}
+              <span className="font-mono text-up">odd</span> = UP,{" "}
+              <span className="font-mono text-down">even</span> = DOWN.
             </li>
-            <li>any rPOW amount works · ties refund all</li>
-            <li>if a payout can&apos;t be sent in your denominations, your stake is refunded</li>
+            <li>
+              <span className="text-zinc-500">3.</span> Round settles in 5 min off BTC/USD (Coinbase ↔ Kraken cross-checked).
+            </li>
+            <li>
+              <span className="text-zinc-500">4.</span> Winners get stake + pro-rata share of losing pool, paid back automatically.
+            </li>
+          </ul>
+          <ul className="space-y-1 text-sm text-zinc-400">
+            <li><span className="font-mono text-up">odd</span> examples: 1, 3, 11, 0.005, 0.001247</li>
+            <li><span className="font-mono text-down">even</span> examples: 2, 4, 12, 0.006, 0.000128</li>
+            <li>any amount works · ties refund all</li>
+            <li>can&apos;t pay in your denominations? full stake refund</li>
             {state.rakeBps > 0 && (
               <li>rake {(state.rakeBps / 100).toFixed(2)}% on losing pool</li>
             )}
@@ -425,6 +423,68 @@ export default function Market() {
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function TokenPoolCard({
+  token,
+  pool,
+  recentBets,
+}: {
+  token: TokenInfo;
+  pool: TokenPool;
+  recentBets: { side: "up" | "down" | "invalid"; amount: string; email: string; atMs: number }[];
+}) {
+  const p = pct(pool.upPool, pool.downPool);
+  return (
+    <div className="rounded-2xl border border-border bg-panel p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="text-sm font-semibold">{token.label}</div>
+        {!token.enabled && (
+          <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-zinc-500">
+            unconfigured
+          </span>
+        )}
+      </div>
+      <div className="mb-3 h-2 w-full overflow-hidden rounded bg-zinc-900">
+        <div className="flex h-full">
+          <div className="bg-up" style={{ width: `${p.up}%` }} />
+          <div className="bg-down" style={{ width: `${p.down}%` }} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="rounded-lg border border-up/30 bg-up/10 p-2">
+          <div className="text-up font-semibold">UP · {p.up.toFixed(1)}%</div>
+          <div className="tabular-nums text-zinc-200">{fmtRpow(pool.upPool)}</div>
+          <div className="text-[10px] text-zinc-500">{pool.upCount} bets</div>
+        </div>
+        <div className="rounded-lg border border-down/30 bg-down/10 p-2">
+          <div className="text-down font-semibold">DOWN · {p.down.toFixed(1)}%</div>
+          <div className="tabular-nums text-zinc-200">{fmtRpow(pool.downPool)}</div>
+          <div className="text-[10px] text-zinc-500">{pool.downCount} bets</div>
+        </div>
+      </div>
+      {recentBets.length > 0 && (
+        <div className="mt-2 max-h-20 overflow-hidden text-[10px]">
+          {recentBets.slice(0, 4).map((b) => (
+            <div key={`${b.email}-${b.atMs}`} className="flex items-center justify-between gap-2 py-0.5">
+              <span className="truncate text-zinc-500">{b.email}</span>
+              <span className={`tabular-nums ${b.side === "up" ? "text-up" : b.side === "down" ? "text-down" : "text-zinc-500"}`}>
+                +{fmtRpow(b.amount)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="mt-3 border-t border-border/50 pt-2">
+        <div className="mb-1 text-[10px] uppercase tracking-wider text-zinc-500">Banker</div>
+        {token.banker ? (
+          <CopyButton value={token.banker} />
+        ) : (
+          <div className="text-[11px] text-zinc-500">not configured yet</div>
+        )}
       </div>
     </div>
   );
