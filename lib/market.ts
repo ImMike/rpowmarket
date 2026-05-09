@@ -187,7 +187,12 @@ export async function flushPayouts() {
       .prepare(`SELECT id, email, amount_base, attempts, token FROM payouts WHERE id = ?`)
       .get(id) as { id: number; email: string; amount_base: string; attempts: number; token: string };
 
-    const key = `rpowmarket-payout-${row.id}`;
+    // Stable key by default. On idempotency-key-conflict (409), salt with attempts
+     // so a poisoned key (cached server-side against an earlier body shape) can recover.
+    const key =
+      row.attempts === 0
+        ? `rpowmarket-payout-${row.id}`
+        : `rpowmarket-payout-${row.id}-r${row.attempts}`;
     d.prepare(`UPDATE payouts SET idempotency_key = ? WHERE id = ?`).run(key, row.id);
 
     const res = await sendRpow(row.token as TokenSlug, row.email, row.amount_base, key);
@@ -199,8 +204,13 @@ export async function flushPayouts() {
       const err = res.error ?? "unknown";
       // permanent errors → mark dead immediately, no retries
       const permanent = /EXACT_SUM_REQUIRED|INSUFFICIENT_FUNDS|INVALID_RECIPIENT/i.test(err);
-      const nextAttempts = row.attempts + 1;
-      const backoff = cfg.payoutBackoffMs[Math.min(nextAttempts - 1, cfg.payoutBackoffMs.length - 1)];
+      const idempotencyConflict = /idempotency_key reused/i.test(err);
+      const nextAttempts = idempotencyConflict
+        ? row.attempts + 1 // bump to force fresh key next round, but don't backoff long
+        : row.attempts + 1;
+      const backoff = idempotencyConflict
+        ? 1000 // retry quickly with new salted key
+        : cfg.payoutBackoffMs[Math.min(nextAttempts - 1, cfg.payoutBackoffMs.length - 1)];
       const giveUp = permanent || nextAttempts >= cfg.payoutBackoffMs.length + 3;
       d.prepare(
         `UPDATE payouts SET status = ?, last_error = ?, attempts = ?, next_attempt_at = ? WHERE id = ?`

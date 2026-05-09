@@ -77,14 +77,14 @@ Built for fun. Open source. Fork it, mock it, re-skin it, run your own.
 
 ## ▮ How it works
 
-### Bet by sending rPOW. Side encoded in the amount.
+### Prediction by sending rPOW. Side encoded in the amount.
 
 | Last non-zero digit of `amount_base_units` | Side | Examples |
 |---|---|---|
 | **odd** (1, 3, 5, 7, 9) | 🟢 **UP** | `1`, `3`, `11`, `0.005`, `0.001247` |
 | **even** (0 doesn't count, 2, 4, 6, 8) | 🔴 **DOWN** | `2`, `4`, `12`, `0.006`, `0.000128` |
 
-No amount is too small. No account exists. No order book. The transfer **is** the bet.
+No amount is too small. No account exists. No order book. The transfer **is** the prediction.
 
 ### Round mechanics
 
@@ -101,7 +101,7 @@ No amount is too small. No account exists. No order book. The transfer **is** th
 - **Strike** = BTC/USD at round start (Coinbase 1-min kline, Kraken fallback)
 - **Settle** = BTC/USD at round end, **cross-checked** Coinbase ↔ Kraken — if they disagree by >0.5%, the **whole round refunds**
 - **Tie** (settle == strike) → full refund
-- **Late bets** (after lockout) → full refund
+- **Late predictions** (after lockout) → full refund
 
 ### Payouts
 
@@ -109,19 +109,19 @@ No amount is too small. No account exists. No order book. The transfer **is** th
 - **Atomic claim** prevents double-payouts under multi-worker concurrency
 - **Stable idempotency keys** dedupe at the rpow2 API too
 - **Exponential backoff** retries (5s → 30s → 5m → 30m → 2h)
-- If a payout permanently fails (denomination mismatch on banker's side), the system queues an automatic **stake refund** — worst case, you get your bet back
+- If a payout permanently fails (denomination mismatch on banker's side), the system queues an automatic **stake refund** — worst case, you get your prediction back
 
 ## ▮ Architecture
 
 ```
             ┌──────────────────────────────┐
-            │     rpow2.com /activity      │  ← bets land as token receives
+            │     rpow2.com /activity      │  ← predictions land as token receives
             └──────────────┬───────────────┘
                            │ poll 5s · cookie auth · watermarked
                            ▼
    ┌────────────────────────────────────────────────────┐
    │       worker (tsx) — single-writer settler         │
-   │   • ingest  → bets table (dedup by tx_key)         │
+   │   • ingest  → predictions table (dedup by tx_key)         │
    │   • snapshot strike (Coinbase / Kraken fallback)   │
    │   • settle  → atomic UPDATE WHERE status=open      │
    │   • payout  → idempotent rpow2 /send + retry       │
@@ -171,15 +171,15 @@ Open `http://localhost:3000`, toggle the theme top-right, watch a round settle l
 
 | Env var | Default | What |
 |---|---|---|
-| `BANKER_EMAIL` | _required_ | rpow2 account that receives bets and sends payouts |
+| `BANKER_EMAIL` | _required_ | rpow2 account that receives predictions and sends payouts |
 | `RPOW_SESSION_COOKIE` | _required_ | `rpow_session=…` from browser DevTools (banker logged-in) |
 | `RPOW_API_TOKEN` | — | alt auth if rpow2 ever ships long-lived tokens |
 | `RAKE_BPS` | `0` | bps cut from losing pool kept by house (`200` = 2%) |
 | `ROUND_SECONDS` | `300` | length of each round |
 | `ACCEPT_SECONDS` | `240` | accept window before lockout |
-| `MIN_BET_BASE` | `1` | minimum bet in base units (10⁻⁹ rPOW) |
+| `MIN_BET_BASE` | `1` | minimum prediction in base units (10⁻⁹ rPOW) |
 | `MAX_BET_RPOW` | `1000` | whale guard per single transfer |
-| `MAX_CLOCK_SKEW_MS` | `300000` | reject bets timestamped impossibly in the future |
+| `MAX_CLOCK_SKEW_MS` | `300000` | reject predictions timestamped impossibly in the future |
 | `DB_PATH` | `./data/market.db` | SQLite location |
 
 ## ▮ Safety properties
@@ -193,8 +193,8 @@ Open `http://localhost:3000`, toggle the theme top-right, watch a round settle l
   │  ✓  dead-payout fallback    auto stake refund on perma-fail     │
   │  ✓  oracle cross-check      Coinbase ↔ Kraken; >0.5% → refund   │
   │  ✓  ingest watermark        pre-launch activity ignored         │
-  │  ✓  clock-skew sanity       future-dated bets dropped           │
-  │  ✓  bet bounds              min/max per transfer                │
+  │  ✓  clock-skew sanity       future-dated predictions dropped           │
+  │  ✓  prediction bounds              min/max per transfer                │
   │  ✓  email masking           PII never leaves the server         │
   │  ✓  HTTP cache + SSE        CDN-friendly · 30k-user-ready       │
   │  ✓  ws fan-out              one upstream → many SSE clients     │
@@ -207,7 +207,7 @@ Open `http://localhost:3000`, toggle the theme top-right, watch a round settle l
 
 - [x] Atomic settle / payout claims, no race double-pay
 - [x] Coinbase + Kraken cross-checked oracle, auto-refund on disagreement
-- [x] Min/max bet, clock-skew sanity, dust drop, email masking server-side
+- [x] Min/max prediction, clock-skew sanity, dust drop, email masking server-side
 - [x] Exponential backoff payout retries; permanent failures → auto stake refund
 - [x] SSE state stream, fan-out BTC ticker, server-side chart backfill
 - [x] HTTP cache + `Cache-Control` for CDN reads
