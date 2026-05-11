@@ -18,6 +18,7 @@ function snapshot() {
       label: t.label,
       banker: t.banker,
       enabled: t.enabled,
+      paused: t.paused,
     })),
     current: roundView(cur.id),
     recent: recentRounds(10),

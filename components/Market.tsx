@@ -5,7 +5,7 @@ import Chart from "./Chart";
 import { useTheme } from "@/lib/useTheme";
 
 type TokenSlug = "rpow2" | "rpow3" | "rpow4";
-type TokenInfo = { slug: TokenSlug; label: string; banker: string; enabled: boolean };
+type TokenInfo = { slug: TokenSlug; label: string; banker: string; enabled: boolean; paused?: boolean };
 type TokenPool = {
   token: TokenSlug;
   upPool: string;
@@ -372,6 +372,10 @@ export default function Market() {
             <li>
               <span className="text-zinc-500">4.</span> Winners get stake + pro-rata share of losing pool, paid back automatically.
             </li>
+            <li>
+              <span className="text-zinc-500">5.</span>{" "}
+              <span className="font-semibold text-up">No fees.</span> No rake. 100% of the losing pool goes to winners.
+            </li>
           </ul>
           <ul className="space-y-1 text-sm text-zinc-400">
             <li><span className="font-mono text-up">odd</span> examples: 1, 3, 11, 0.005, 0.001247</li>
@@ -451,12 +455,21 @@ function TokenPoolCard({
     <div className="rounded-2xl border border-border bg-panel p-4">
       <div className="mb-2 flex items-center justify-between">
         <div className="text-sm font-semibold">{token.label}</div>
-        {!token.enabled && (
+        {token.paused ? (
+          <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-amber-400">
+            paused
+          </span>
+        ) : !token.enabled ? (
           <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-zinc-500">
             unconfigured
           </span>
-        )}
+        ) : null}
       </div>
+      {token.paused && (
+        <div className="mb-3 rounded border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-200">
+          {token.label} is paused — its API is temporarily unavailable. Pending payouts will process automatically as soon as it&apos;s back. Sorry for the delay!
+        </div>
+      )}
       <div className="mb-3 h-2 w-full overflow-hidden rounded bg-zinc-900">
         <div className="flex h-full">
           <div className="bg-up" style={{ width: `${p.up}%` }} />

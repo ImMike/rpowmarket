@@ -11,6 +11,7 @@ export type TokenConfig = {
   cookie: string;
   token: string;
   enabled: boolean;
+  paused: boolean;
 };
 
 function tokenCfg(slug: TokenSlug, label: string, defaultApi: string): TokenConfig {
@@ -32,6 +33,7 @@ function tokenCfg(slug: TokenSlug, label: string, defaultApi: string): TokenConf
     cookie,
     token,
     enabled: Boolean(banker),
+    paused: process.env[`${upper}_PAUSED`] === "1",
   };
 }
 
