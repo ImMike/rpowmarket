@@ -4,7 +4,7 @@ import GithubBadge from "@/components/GithubBadge";
 
 export default function Page() {
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
+    <main className="w-full max-w-5xl px-4 py-8">
       <Header />
       <HomeView />
       <footer className="mt-12 border-t border-border pt-4 text-xs text-zinc-500">

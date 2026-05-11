@@ -2,10 +2,11 @@
 
 <img src="public/rpowmarket.png" alt="rpowMarket" height="96" />
 
-# rpowMarket — BTC Up / Down Prediction Market on rpow2, rpow3, rpow4!
+# rpowMarket — a playground for rPOW
 
-**Open-source 5-minute Bitcoin price market. Polymarket-style parimutuel pools.
-Built on [rpow2](https://rpow2.com) play tokens. Tribute to Hal Finney.**
+**Now featuring 🎟️ RPOWerball — a fair 6-hour parimutuel lottery on rpow2 / rpow3 / rpow4.
+The 5-minute BTC up/down prediction market is paused; the same banker email now accepts lottery entries.
+Tribute to Hal Finney.**
 
 [![parody](https://img.shields.io/badge/parody-for%20fun%20only-ff8800?style=for-the-badge)](#disclaimer)
 [![next](https://img.shields.io/badge/Next.js-15-000?style=for-the-badge&logo=next.js)](https://nextjs.org)
@@ -33,10 +34,24 @@ Built on [rpow2](https://rpow2.com) play tokens. Tribute to Hal Finney.**
 
 ## ▮ TL;DR
 
-Send rPOW to the banker.
-**Odd amount → UP. Even amount → DOWN.** That's the whole UX.
-BTC price decides the round. Winners get paid back to their inbox, automatically.
-Zero fees. Zero account. Zero monetary value. **Maximum vibes.**
+Send rPOW to the lottery banker. Every 6 hours we draw three winners.
+**1 rPOW = 1 ticket, capped at 100 per wallet per round** (excess auto-refunded).
+60% / 25% / 10% to 1st / 2nd / 3rd, 5% to the facilitator. Verifiable, no house edge.
+
+The original prediction market (`Market` tab) is still visible as a showcase but currently paused — see `RPOWerball` for the live game.
+
+## ▮ RPOWerball — how it works
+
+| | |
+|---|---|
+| **Banker** | one email accepts entries for all three tokens — `rpowmarket@gmail.com` |
+| **Tickets** | linear `1 rPOW = 1 ticket`, hard cap at **100 per wallet per round** so whales can't lock out new players |
+| **Excess refunds** | sends beyond the cap (per wallet, cumulative across multiple transfers in the same round) are auto-refunded via the same payout pipeline that already handles market refunds |
+| **Period** | 6 hours, synchronized clock — all three token lotteries draw simultaneously but settle independently |
+| **Randomness** | `sha256(btc_close_price | round_id | token)` + per-place salt → ticket-index modulo. Public BTC close, public round id, public token name = anyone can reproduce the math and verify the winners |
+| **Roll-forward** | if no one enters in a given token's round, that token's pool rolls into next round's jackpot. Nothing is ever burned |
+| **Split** | 60% / 25% / 10% to 1st / 2nd / 3rd · 5% to the facilitator |
+| **Same wallet can't double-place** | a wallet that wins 1st is removed before drawing 2nd / 3rd in the same round |
 
 ```
    you                       banker (rpow2 wallet)              chain (BTC/USD)

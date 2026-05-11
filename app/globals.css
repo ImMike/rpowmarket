@@ -79,3 +79,29 @@ html[data-theme="terminal"] body::after {
   z-index: 99;
   background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.6) 100%);
 }
+
+/* ---------- RPOWerball draw celebration ---------- */
+@keyframes confetti-fall {
+  0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
+@keyframes jackpot-pulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 12px rgba(251,191,36,0.6)); }
+  50% { transform: scale(1.05); filter: drop-shadow(0 0 28px rgba(251,191,36,1)); }
+}
+@keyframes reveal-slide {
+  0% { transform: translateY(20px) scale(0.9); opacity: 0; }
+  60% { transform: translateY(-4px) scale(1.04); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.confetti-piece {
+  position: fixed;
+  top: -20px;
+  width: 10px;
+  height: 14px;
+  pointer-events: none;
+  animation: confetti-fall linear forwards;
+}
+.jackpot-pulse { animation: jackpot-pulse 1.6s ease-in-out infinite; }
+.reveal-slide { animation: reveal-slide 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+

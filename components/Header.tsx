@@ -4,18 +4,16 @@ import { useTheme } from "@/lib/useTheme";
 export default function Header() {
   const [theme, setTheme] = useTheme();
   return (
-    <header className="mb-8 flex items-start justify-between gap-4">
+    <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <img
           src="/rpowmarket.png"
           alt="rpowMarket"
           className="mb-1 h-10 w-auto object-contain"
         />
-        <p className="text-sm text-zinc-400">
-          BTC 5-minute up/down · powered by rpow2 · tribute to Hal Finney
-        </p>
+        <p className="text-sm text-zinc-400">a playground for rPOW</p>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="inline-flex overflow-hidden rounded border border-border text-xs">
           <button
             onClick={() => setTheme("modern")}
@@ -30,7 +28,7 @@ export default function Header() {
             terminal
           </button>
         </div>
-        <div className="flex items-center gap-3 text-xs text-zinc-500">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
           <a href="https://rpow2.com" target="_blank" className="hover:text-zinc-300">rpow2.com →</a>
           <a href="https://rpow3.com" target="_blank" className="hover:text-zinc-300">rpow3.com →</a>
           <a href="https://rpow4.com" target="_blank" className="hover:text-zinc-300">rpow4.com →</a>

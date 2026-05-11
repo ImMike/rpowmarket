@@ -70,6 +70,7 @@ async function ingestForToken(slug: TokenSlug) {
 export async function ingestActivity() {
   for (const t of tokens) {
     if (!t.enabled) continue;
+    if (t.paused) continue; // market paused — skip ingest; lottery handles transfers
     await ingestForToken(t.slug).catch(() => {});
   }
 }
@@ -167,16 +168,17 @@ export async function settleRound(roundId: number) {
   d.prepare(`UPDATE rounds SET status = ?, settled_at = ? WHERE id = ?`).run(finalStatus, Date.now(), roundId);
 }
 
-export async function flushPayouts() {
+export async function flushPayouts(lotteryOnly = false) {
   const d = db();
   const now = Date.now();
+  const kindClause = lotteryOnly ? `AND kind = 'lottery_refund'` : "";
   const claim = d.prepare(
-    `UPDATE payouts SET status = 'sending' WHERE id = ? AND status IN ('pending','failed') AND next_attempt_at <= ?`
+    `UPDATE payouts SET status = 'sending' WHERE id = ? AND status IN ('pending','failed') AND next_attempt_at <= ? ${kindClause}`
   );
   const ids = (
     d
       .prepare(
-        `SELECT id FROM payouts WHERE status IN ('pending','failed') AND next_attempt_at <= ? LIMIT 25`
+        `SELECT id FROM payouts WHERE status IN ('pending','failed') AND next_attempt_at <= ? ${kindClause} LIMIT 25`
       )
       .all(now) as { id: number }[]
   ).map((r) => r.id);
@@ -400,9 +402,17 @@ export async function tick() {
   const due = d
     .prepare(`SELECT id FROM rounds WHERE status IN ('open','locked') AND id <= ?`)
     .all(Math.floor((now - cfg.roundSec * 1000) / 1000)) as { id: number }[];
-  await ingestActivity().catch(() => {});
-  for (const r of due) await settleRound(r.id).catch(() => {});
-  await flushPayouts().catch(() => {});
+  const marketFrozen = process.env.MARKET_FROZEN === "1";
+  if (!marketFrozen) {
+    await ingestActivity().catch(() => {});
+    for (const r of due) await settleRound(r.id).catch(() => {});
+  }
+  await flushPayouts(marketFrozen).catch(() => {});
+  try {
+    const { ingestLotteryActivity, processLotteries } = await import("./lottery");
+    await ingestLotteryActivity();
+    await processLotteries();
+  } catch {}
   try {
     refundDeadPayouts();
   } catch {}

@@ -71,6 +71,45 @@ export function db(): Database.Database {
   d.exec(`CREATE INDEX IF NOT EXISTS idx_prices_ts ON prices(ts_ms)`);
   d.exec(`CREATE INDEX IF NOT EXISTS idx_bets_round_token ON bets(round_id, token)`);
   d.exec(`CREATE INDEX IF NOT EXISTS idx_payouts_token ON payouts(token, status)`);
+
+  // ── RPOWerball lottery ───────────────────────────────────────────
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS lottery_rounds (
+      id INTEGER NOT NULL,             -- start_ms / 1000
+      token TEXT NOT NULL,             -- rpow2 | rpow3 | rpow4
+      start_ms INTEGER NOT NULL,
+      end_ms INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open',   -- open | drawing | settled
+      draw_seed TEXT,
+      total_pool_base TEXT NOT NULL DEFAULT '0',
+      ticket_total INTEGER NOT NULL DEFAULT 0,
+      rolled_from INTEGER,             -- previous round id whose pool rolled into this one (no entries)
+      settled_at INTEGER,
+      PRIMARY KEY (id, token)
+    );
+    CREATE TABLE IF NOT EXISTS lottery_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      round_id INTEGER NOT NULL,
+      token TEXT NOT NULL,
+      email TEXT NOT NULL,             -- handle or pubkey, same convention as bets
+      amount_base TEXT NOT NULL,
+      tickets INTEGER NOT NULL,
+      at_ms INTEGER NOT NULL,
+      tx_key TEXT NOT NULL UNIQUE
+    );
+    CREATE INDEX IF NOT EXISTS idx_lot_entries_round ON lottery_entries(round_id, token);
+    CREATE TABLE IF NOT EXISTS lottery_winners (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      round_id INTEGER NOT NULL,
+      token TEXT NOT NULL,
+      place INTEGER NOT NULL,           -- 1 | 2 | 3 | 0 = facilitator
+      email TEXT NOT NULL,
+      amount_base TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_lot_winners_round ON lottery_winners(round_id, token);
+  `);
+
   _db = d;
   return d;
 }

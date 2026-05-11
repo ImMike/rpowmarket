@@ -393,16 +393,16 @@ export default function Market() {
       <div>
         <div className="mb-2 text-xs uppercase tracking-wider text-zinc-500">Recent rounds</div>
         <div className="overflow-hidden rounded-2xl border border-border bg-panel">
-          <table className="w-full text-sm">
-            <thead className="text-xs text-zinc-500">
+          <table className="w-full text-xs sm:text-sm">
+            <thead className="text-[10px] text-zinc-500 sm:text-xs">
               <tr>
-                <th className="px-3 py-2 text-left">#</th>
-                <th className="px-3 py-2 text-left">Status</th>
-                <th className="px-3 py-2 text-right">Strike</th>
-                <th className="px-3 py-2 text-right">Settle</th>
-                <th className="px-3 py-2 text-right">UP pool</th>
-                <th className="px-3 py-2 text-right">DOWN pool</th>
-                <th className="px-3 py-2 text-right">Outcome</th>
+                <th className="px-2 py-2 text-left sm:px-3">#</th>
+                <th className="px-2 py-2 text-left sm:px-3">Status</th>
+                <th className="px-2 py-2 text-right sm:px-3">Strike</th>
+                <th className="px-2 py-2 text-right sm:px-3">Settle</th>
+                <th className="hidden px-3 py-2 text-right md:table-cell">UP pool</th>
+                <th className="hidden px-3 py-2 text-right md:table-cell">DOWN pool</th>
+                <th className="px-2 py-2 text-right sm:px-3">Outcome</th>
               </tr>
             </thead>
             <tbody>
@@ -417,14 +417,14 @@ export default function Market() {
                     : "DOWN";
                 return (
                   <tr key={r.id} className="border-t border-border/50">
-                    <td className="px-3 py-2 font-mono text-zinc-400">{r.id}</td>
-                    <td className="px-3 py-2 text-zinc-400">{r.status}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{r.strike?.toFixed(2) ?? "—"}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{r.settle?.toFixed(2) ?? "—"}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{fmtRpow(r.upPool)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{fmtRpow(r.downPool)}</td>
+                    <td className="px-2 py-2 font-mono text-zinc-400 sm:px-3">{r.id}</td>
+                    <td className="px-2 py-2 text-zinc-400 sm:px-3">{r.status}</td>
+                    <td className="px-2 py-2 text-right tabular-nums sm:px-3">{r.strike?.toFixed(2) ?? "—"}</td>
+                    <td className="px-2 py-2 text-right tabular-nums sm:px-3">{r.settle?.toFixed(2) ?? "—"}</td>
+                    <td className="hidden px-3 py-2 text-right tabular-nums md:table-cell">{fmtRpow(r.upPool)}</td>
+                    <td className="hidden px-3 py-2 text-right tabular-nums md:table-cell">{fmtRpow(r.downPool)}</td>
                     <td
-                      className={`px-3 py-2 text-right font-semibold ${
+                      className={`px-2 py-2 text-right font-semibold sm:px-3 ${
                         out === "UP" ? "text-up" : out === "DOWN" ? "text-down" : "text-zinc-500"
                       }`}
                     >
@@ -467,7 +467,7 @@ function TokenPoolCard({
       </div>
       {token.paused && (
         <div className="mb-3 rounded border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-200">
-          {token.label} is paused — its API is temporarily unavailable. Pending payouts will process automatically as soon as it&apos;s back. Sorry for the delay!
+          Prediction market is <span className="font-semibold">closed</span> for now. The {token.label} banker email below now accepts <span className="font-semibold">RPOWerball</span> lottery entries instead — see the lottery tab!
         </div>
       )}
       <div className="mb-3 h-2 w-full overflow-hidden rounded bg-zinc-900">
