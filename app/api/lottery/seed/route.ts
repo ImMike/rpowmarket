@@ -7,7 +7,9 @@ export const dynamic = "force-dynamic";
 
 // Dev-only: seed fake entries and optionally force-draw. Disabled in prod.
 export async function POST(req: Request) {
-  if (process.env.NODE_ENV === "production" && process.env.LOTTERY_SEED_ALLOWED !== "1") {
+  // Hard-gated: requires LOTTERY_SEED_ALLOWED=1 in env, regardless of NODE_ENV.
+  // Production should never set this. Local dev sets it temporarily when seeding test data.
+  if (process.env.LOTTERY_SEED_ALLOWED !== "1") {
     return NextResponse.json({ error: "disabled" }, { status: 403 });
   }
   const body = (await req.json().catch(() => ({}))) as {
