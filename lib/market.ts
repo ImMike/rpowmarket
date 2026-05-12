@@ -171,7 +171,7 @@ export async function settleRound(roundId: number) {
 export async function flushPayouts(lotteryOnly = false) {
   const d = db();
   const now = Date.now();
-  const kindClause = lotteryOnly ? `AND kind = 'lottery_refund'` : "";
+  const kindClause = lotteryOnly ? `AND kind IN ('lottery_refund','lottery_win')` : "";
   const claim = d.prepare(
     `UPDATE payouts SET status = 'sending' WHERE id = ? AND status IN ('pending','failed') AND next_attempt_at <= ? ${kindClause}`
   );

@@ -12,3 +12,6 @@ cookies.txt
 secrets/
 r4.js
 .claude/
+market.db.backup
+*.db
+*.db.backup

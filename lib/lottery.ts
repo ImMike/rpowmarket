@@ -86,7 +86,10 @@ export type DrawResult = {
   winners: { place: number; email: string; amount_base: string }[];
   rolled?: boolean;
   rolled_from?: number;
+  refunded?: boolean; // <3 entrants — every entry refunded in full
 };
+
+export const MIN_ENTRANTS_TO_DRAW = 3;
 
 export async function drawLottery(token: TokenSlug, roundId: number): Promise<DrawResult | null> {
   const d = db();
@@ -131,6 +134,27 @@ export async function drawLottery(token: TokenSlug, roundId: number): Promise<Dr
     return { winners: [], rolled: true, rolled_from: roundId };
   }
 
+  // Not enough entrants to fill 1st/2nd/3rd — refund every entry in full.
+  if (entriesGroup.length < MIN_ENTRANTS_TO_DRAW) {
+    const now = Date.now();
+    const insRefund = d.prepare(
+      `INSERT INTO payouts (round_id, email, amount_base, kind, status, token, created_at)
+       VALUES (?, ?, ?, 'lottery_refund', 'pending', ?, ?)`
+    );
+    const tx = d.transaction(() => {
+      for (const e of entriesGroup) {
+        insRefund.run(roundId, e.email, e.amount_base, token, now);
+      }
+      d.prepare(`UPDATE lottery_rounds SET status = 'settled', settled_at = ? WHERE id = ? AND token = ?`).run(
+        now,
+        roundId,
+        token
+      );
+    });
+    tx();
+    return { winners: [], refunded: true };
+  }
+
   // deterministic seed = sha256(btc_close_at_end || roundId || token)
   const oracle = await getPriceAtChecked(round.end_ms).catch(() => ({ price: 0, agreed: false }));
   const seedHex = crypto
@@ -170,13 +194,23 @@ export async function drawLottery(token: TokenSlug, roundId: number): Promise<Dr
     amount_base: placeAmount(FACILITATOR_BPS).toString(),
   });
 
-  // persist
+  // persist + queue payouts for each winner
   const now = Date.now();
   const ins = d.prepare(
     `INSERT INTO lottery_winners (round_id, token, place, email, amount_base, created_at) VALUES (?, ?, ?, ?, ?, ?)`
   );
+  const insPayout = d.prepare(
+    `INSERT INTO payouts (round_id, email, amount_base, kind, status, token, created_at)
+     VALUES (?, ?, ?, ?, 'pending', ?, ?)`
+  );
   const tx = d.transaction(() => {
-    for (const w of winners) ins.run(roundId, token, w.place, w.email, w.amount_base, now);
+    for (const w of winners) {
+      ins.run(roundId, token, w.place, w.email, w.amount_base, now);
+      // place 0 = facilitator — that's you, no payout queued (you keep it in the banker)
+      if (w.place === 0) continue;
+      if (BigInt(w.amount_base) <= 0n) continue;
+      insPayout.run(roundId, w.email, w.amount_base, "lottery_win", token, now);
+    }
     d.prepare(
       `UPDATE lottery_rounds SET status = 'settled', settled_at = ?, draw_seed = ? WHERE id = ? AND token = ?`
     ).run(now, seedHex, roundId, token);

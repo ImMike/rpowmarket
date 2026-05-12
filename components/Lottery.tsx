@@ -411,7 +411,10 @@ export default function Lottery() {
             <span className="text-zinc-300">Anyone can verify</span> — the seed is saved on every settled round. Reproduce the math with the public BTC close, the round id, the token name, and the entries list — you should get exactly the winners we paid.
           </li>
           <li>
-            <span className="text-zinc-300">Payouts</span> — 60% / 25% / 10% to 1st / 2nd / 3rd. 5% to the facilitator. If no one entered, the whole pool rolls forward to the next round&apos;s jackpot — nothing disappears.
+            <span className="text-zinc-300">Payouts</span> — 60% / 25% / 10% to 1st / 2nd / 3rd. 5% to the facilitator.
+          </li>
+          <li>
+            <span className="text-zinc-300">Edge cases</span> — if fewer than <span className="font-mono">3</span> unique wallets enter a round, every entry is fully refunded (no winners, no fee). If <em>no</em> one enters, the pool rolls forward into next round&apos;s jackpot. Nothing disappears.
           </li>
         </ol>
         <div className="mt-3 text-[11px] italic text-zinc-500">

@@ -24,7 +24,8 @@ function buildSendBody(
     return { recipient_email: recipient, amount_base_units: amountBase, idempotency_key: idempotencyKey };
   }
   if (slug === "rpow3") {
-    return { recipient_email: recipient, amount: baseToDisplay(amountBase), idempotency_key: idempotencyKey };
+    // rpow3 accepts integer rPOW amounts only; floor and let dust stay in the banker.
+    return { recipient_email: recipient, amount: Math.floor(baseToDisplay(amountBase)), idempotency_key: idempotencyKey };
   }
   // rpow4: signed transfer with pubkey recipient
   const payload: Record<string, unknown> = {
