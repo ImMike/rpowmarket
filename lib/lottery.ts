@@ -286,6 +286,8 @@ export function processLotteries() {
   const out: { token: TokenSlug; result: Promise<DrawResult | null> }[] = [];
   for (const t of tokens) {
     if (!t.enabled) continue;
+    // Lottery only operates while the token's market is paused (the polarity switch).
+    if (!t.paused) continue;
     ensureLotteryRound(t.slug as TokenSlug);
     // also draw any past-due
     const due = db()

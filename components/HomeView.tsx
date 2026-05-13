@@ -9,7 +9,7 @@ import VisitorCounter from "./VisitorCounter";
 type Tab = "market" | "hiscores" | "lottery";
 
 export default function HomeView() {
-  const [tab, setTab] = useState<Tab>("lottery");
+  const [tab, setTab] = useState<Tab>("market");
 
   // sync tab from URL hash so links/refresh persist
   useEffect(() => {

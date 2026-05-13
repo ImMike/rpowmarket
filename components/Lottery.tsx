@@ -8,6 +8,7 @@ type TokenLot = {
   token: string;
   label: string;
   banker: string;
+  paused: boolean;
   round: {
     id: number;
     start_ms: number;
@@ -132,6 +133,9 @@ export default function Lottery() {
 
   if (!state) return <div className="text-sm text-zinc-500">Loading lottery…</div>;
 
+  // Lottery is "live" only when at least one token is paused (the paused-market flag is the polarity switch).
+  const lotteryActive = state.tokens.some((t) => t.paused);
+
   const nextDrawMs = Math.min(...state.tokens.map((t) => t.round.end_ms));
   const totalPool = state.tokens.reduce((acc, t) => {
     try {
@@ -143,9 +147,19 @@ export default function Lottery() {
 
   return (
     <div className="space-y-6">
-      {celebrate && <LotteryCelebration {...celebrate} onClose={() => setCelebrate(null)} />}
+      {celebrate && lotteryActive && <LotteryCelebration {...celebrate} onClose={() => setCelebrate(null)} />}
 
-      <div className="relative overflow-hidden rounded-2xl border-2 border-amber-400 bg-gradient-to-br from-amber-500/20 via-amber-600/10 to-transparent p-5 text-center shadow-[0_0_40px_rgba(251,191,36,0.25)]">
+      {!lotteryActive && (
+        <div className="rounded-2xl border-2 border-amber-500/50 bg-amber-500/10 p-5 text-center">
+          <div className="mb-1 text-xs uppercase tracking-[0.3em] text-amber-400">⏸ RPOWerball is paused</div>
+          <div className="text-sm text-zinc-300">
+            We&apos;re running the <span className="font-semibold">5-minute prediction market</span> right now — check the <span className="font-mono text-amber-300">Market</span> tab to play.
+            The lottery is on standby and will return soon. Past winners and stats below.
+          </div>
+        </div>
+      )}
+
+      <div className={`relative overflow-hidden rounded-2xl border-2 border-amber-400 bg-gradient-to-br from-amber-500/20 via-amber-600/10 to-transparent p-5 text-center shadow-[0_0_40px_rgba(251,191,36,0.25)] ${lotteryActive ? "" : "opacity-50"}`}>
         <div className="text-[10px] uppercase tracking-[0.4em] text-amber-300">⚡ next RPOWerball draw in ⚡</div>
         <CountdownBig endMs={nextDrawMs} />
         <div className="mt-3 text-[10px] uppercase tracking-widest text-amber-400">total grand prize</div>

@@ -57,6 +57,7 @@ export async function GET() {
           token: t.slug,
           label: t.label,
           banker: t.banker,
+          paused: t.paused,
           round: {
             id: rid,
             start_ms: w.startMs,
